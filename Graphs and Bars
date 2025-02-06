@@ -1,0 +1,194 @@
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# For reproducibility
+np.random.seed(42)
+
+###############################################################################
+# Prepare Synthetic Data
+###############################################################################
+
+# Create annual data for years 2000 to 2020 and for several vehicle types.
+years = np.arange(2000, 2021)
+vehicle_types = ['Sedan', 'SUV', 'Truck', 'Electric']
+# For simplicity, we designate a few recession years (e.g., 2001, 2008, and 2020)
+recession_years = [2001, 2008, 2020]
+
+# Build a list of records; each record corresponds to a given year and vehicle type.
+data = []
+for year in years:
+    period = 'Recession' if year in recession_years else 'Non-Recession'
+    for vt in vehicle_types:
+        sales = np.random.randint(5000, 20000)
+        # Assume GDP is lower during recession years
+        gdp = np.random.uniform(5000, 10000) if period == 'Recession' else np.random.uniform(10000, 20000)
+        avg_price = np.random.uniform(20000, 50000)
+        # Assume higher unemployment during recessions
+        unemp = np.random.uniform(7, 15) if period == 'Recession' else np.random.uniform(3, 10)
+        ad_exp = np.random.uniform(100000, 500000)
+        data.append([year, vt, period, sales, gdp, avg_price, unemp, ad_exp])
+
+# Create a DataFrame for annual data
+df = pd.DataFrame(data, 
+                  columns=['Year', 'Vehicle_Type', 'Period', 'Sales', 'GDP', 'Avg_Price', 'Unemployment_Rate', 'Ad_Exp'])
+
+# Create a separate seasonal dataset (e.g., for one representative year)
+seasons = ['Spring', 'Summer', 'Fall', 'Winter']
+season_data = []
+for season in seasons:
+    # Random sales data per season
+    sales = np.random.randint(10000, 30000)
+    season_data.append([season, sales])
+df_season = pd.DataFrame(season_data, columns=['Season', 'Sales'])
+
+###############################################################################
+# TASK 1.1: Line chart using pandas to show how automobile sales fluctuate year-to-year.
+###############################################################################
+# Aggregate total annual sales (across all vehicle types)
+annual_sales = df.groupby('Year')['Sales'].sum()
+
+# Plot using pandas' built-in plotting
+annual_sales.plot(kind='line', marker='o', figsize=(10, 6), title='Annual Automobile Sales')
+plt.xlabel('Year')
+plt.ylabel('Total Sales')
+plt.grid(True)
+plt.show()
+
+###############################################################################
+# TASK 1.2: Plot different lines for vehicle types during recession periods.
+###############################################################################
+# Filter for recession period data
+df_recession = df[df['Period'] == 'Recession']
+
+# Pivot the data so that each vehicle type is a column and index is Year
+pivot_recession = df_recession.pivot_table(values='Sales', index='Year', columns='Vehicle_Type', aggfunc='sum')
+
+# Plot the recession data for each vehicle type
+pivot_recession.plot(kind='line', marker='o', figsize=(10, 6), title='Vehicle Type Sales during Recession')
+plt.xlabel('Year')
+plt.ylabel('Sales')
+plt.legend(title='Vehicle Type')
+plt.grid(True)
+plt.show()
+
+# *Analysis Tip:* Compare the trends for each vehicle type to see if, for example, SUVs or Trucks 
+# have steeper drops or recoveries during recession years.
+
+###############################################################################
+# TASK 1.3: Use Seaborn to compare sales trends per vehicle type for recession vs. non-recession.
+###############################################################################
+# Set Seaborn style for clarity
+sns.set(style="whitegrid")
+
+# Create a FacetGrid by 'Period' so that recession and non-recession are side by side.
+g = sns.FacetGrid(df, col="Period", height=5, aspect=1.5, sharey=True)
+g.map_dataframe(sns.lineplot, x="Year", y="Sales", hue="Vehicle_Type", marker="o")
+g.add_legend()
+g.set_axis_labels("Year", "Sales")
+g.fig.suptitle('Sales Trend per Vehicle Type: Recession vs. Non-Recession', fontsize=16)
+plt.subplots_adjust(top=0.85)
+plt.show()
+
+###############################################################################
+# TASK 1.4: Subplots to compare variations in GDP during recession and non-recession periods.
+###############################################################################
+fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+for ax, period in zip(axes, ['Recession', 'Non-Recession']):
+    subset = df[df['Period'] == period]
+    # Compute average GDP per year
+    gdp_trend = subset.groupby('Year')['GDP'].mean()
+    ax.plot(gdp_trend.index, gdp_trend.values, marker='o')
+    ax.set_title(f'GDP Trend during {period}')
+    ax.set_xlabel('Year')
+    ax.set_ylabel('GDP')
+    ax.grid(True)
+fig.suptitle('GDP Variations during Recession and Non-Recession Periods', fontsize=16)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()
+
+###############################################################################
+# TASK 1.5: Bubble plot displaying the impact of seasonality on Automobile Sales.
+###############################################################################
+# Since season is categorical, map it to numeric positions for plotting.
+season_order = {'Spring': 1, 'Summer': 2, 'Fall': 3, 'Winter': 4}
+df_season['Season_Num'] = df_season['Season'].map(season_order)
+
+plt.figure(figsize=(8, 6))
+# The bubble size here is proportional to the sales (you may adjust the scaling factor as needed)
+plt.scatter(df_season['Season_Num'], df_season['Sales'], 
+            s=df_season['Sales'] / 10, alpha=0.5, color='green')
+plt.xticks(list(season_order.values()), list(season_order.keys()))
+plt.xlabel('Season')
+plt.ylabel('Sales')
+plt.title('Impact of Seasonality on Automobile Sales\n(Bubble size ~ Sales volume)')
+plt.grid(True)
+plt.show()
+
+###############################################################################
+# TASK 1.6: Scatter plot (with Matplotlib) to examine correlation between average vehicle price and sales during recessions.
+###############################################################################
+# Use the recession subset created earlier
+plt.figure(figsize=(8, 6))
+plt.scatter(df_recession['Avg_Price'], df_recession['Sales'], color='red', alpha=0.7)
+plt.xlabel('Average Vehicle Price')
+plt.ylabel('Sales Volume')
+plt.title('Correlation between Average Vehicle Price and Sales Volume during Recession')
+plt.grid(True)
+plt.show()
+
+###############################################################################
+# TASK 1.7: Pie chart displaying the portion of advertising expenditure during recession vs. non-recession.
+###############################################################################
+# Aggregate advertising expenditure by period
+ad_exp_by_period = df.groupby('Period')['Ad_Exp'].sum()
+
+plt.figure(figsize=(8, 8))
+plt.pie(ad_exp_by_period, labels=ad_exp_by_period.index, autopct='%1.1f%%', startangle=140)
+plt.title('Advertising Expenditure: Recession vs. Non-Recession')
+plt.axis('equal')  # Equal aspect ratio ensures the pie chart is circular.
+plt.show()
+
+###############################################################################
+# TASK 1.8: Pie chart displaying total advertisement expenditure per vehicle type during recession.
+###############################################################################
+# Aggregate advertising expenditure by vehicle type within the recession period
+ad_exp_by_vehicle = df_recession.groupby('Vehicle_Type')['Ad_Exp'].sum()
+
+plt.figure(figsize=(8, 8))
+plt.pie(ad_exp_by_vehicle, labels=ad_exp_by_vehicle.index, autopct='%1.1f%%', startangle=140)
+plt.title('Advertisement Expenditure by Vehicle Type during Recession')
+plt.axis('equal')
+plt.show()
+
+###############################################################################
+# TASK 1.9: Line plot analyzing the effect of unemployment rate on vehicle type sales during the Recession Period.
+###############################################################################
+# Create a dual-axis plot: left y-axis for sales (by vehicle type) and right y-axis for average unemployment rate.
+fig, ax1 = plt.subplots(figsize=(10, 6))
+
+# Plot sales trends for each vehicle type on the primary axis
+for vt in df_recession['Vehicle_Type'].unique():
+    vt_data = df_recession[df_recession['Vehicle_Type'] == vt]
+    ax1.plot(vt_data['Year'], vt_data['Sales'], marker='o', label=f'Sales - {vt}')
+ax1.set_xlabel('Year')
+ax1.set_ylabel('Sales Volume', color='blue')
+ax1.tick_params(axis='y', labelcolor='blue')
+ax1.grid(True)
+
+# Create a secondary y-axis to plot the average unemployment rate
+ax2 = ax1.twinx()
+unemp_trend = df_recession.groupby('Year')['Unemployment_Rate'].mean()
+ax2.plot(unemp_trend.index, unemp_trend.values, marker='s', color='red', linestyle='--', label='Avg Unemployment Rate')
+ax2.set_ylabel('Unemployment Rate (%)', color='red')
+ax2.tick_params(axis='y', labelcolor='red')
+
+plt.title('Effect of Unemployment Rate on Vehicle Sales during Recession')
+# Combine legends from both axes
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
+
+plt.show()
